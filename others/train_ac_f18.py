@@ -5,7 +5,6 @@ Adapted for CS294-112 Fall 2018 by Soroush Nasiriany, Sid Reddy, and Greg Kahn
 """
 import numpy as np
 import tensorflow as tf
-import tensorflow_probability as tfp
 import gym
 import logz
 import os
