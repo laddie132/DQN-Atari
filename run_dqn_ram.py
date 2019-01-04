@@ -114,8 +114,8 @@ def get_env(seed):
     set_global_seeds(seed)
     env.seed(seed)
 
-    expt_dir = '/tmp/hw3_vid_dir/'
-    env = wrappers.Monitor(env, osp.join(expt_dir, "gym"), force=True)
+    expt_dir = 'video/pong_ram/'
+    env = wrappers.Monitor(env, expt_dir, force=True)
     env = wrap_deepmind_ram(env)
 
     return env

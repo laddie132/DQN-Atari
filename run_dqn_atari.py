@@ -39,12 +39,16 @@ def atari_learn(env,
     num_iterations = float(num_timesteps) / 4.0
 
     lr_multiplier = 1.0
+    # lr_schedule = PiecewiseSchedule([
+    #     (0, 1e-4 * lr_multiplier),
+    #     (num_iterations / 10, 1e-4 * lr_multiplier),
+    #     (num_iterations / 2, 5e-5 * lr_multiplier),
+    # ],
+    #     outside_value=5e-5 * lr_multiplier)
     lr_schedule = PiecewiseSchedule([
-        (0, 1e-4 * lr_multiplier),
-        (num_iterations / 10, 1e-4 * lr_multiplier),
-        (num_iterations / 2, 5e-5 * lr_multiplier),
+        (0, 1e-3 * lr_multiplier),
     ],
-        outside_value=5e-5 * lr_multiplier)
+        outside_value=1e-3 * lr_multiplier)
     optimizer = dqn.OptimizerSpec(
         constructor=tf.train.AdamOptimizer,
         kwargs=dict(epsilon=1e-4),
@@ -80,7 +84,7 @@ def atari_learn(env,
         target_update_freq=10000,
         grad_norm_clipping=10,
         double_q=True,
-        rew_file='pong_double'
+        rew_file='pong_lr_1e-3'
     )
     env.close()
 
@@ -119,8 +123,8 @@ def get_env(task, seed):
     set_global_seeds(seed)
     env.seed(seed)
 
-    expt_dir = '/tmp/hw3_vid_dir2/'
-    env = wrappers.Monitor(env, osp.join(expt_dir, "gym"), force=True)
+    expt_dir = 'video/pong_lr_1e-3/'
+    env = wrappers.Monitor(env, expt_dir, force=True)
     env = wrap_deepmind(env)
 
     return env
