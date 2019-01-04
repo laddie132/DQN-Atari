@@ -34,21 +34,18 @@ def atari_model(img_in, num_actions, scope, reuse=False):
 
 def atari_learn(env,
                 session,
-                num_timesteps):
+                num_timesteps,
+                name):
     # This is just a rough estimate
     num_iterations = float(num_timesteps) / 4.0
 
     lr_multiplier = 1.0
-    # lr_schedule = PiecewiseSchedule([
-    #     (0, 1e-4 * lr_multiplier),
-    #     (num_iterations / 10, 1e-4 * lr_multiplier),
-    #     (num_iterations / 2, 5e-5 * lr_multiplier),
-    # ],
-    #     outside_value=5e-5 * lr_multiplier)
     lr_schedule = PiecewiseSchedule([
-        (0, 1e-3 * lr_multiplier),
+        (0, 1e-4 * lr_multiplier),
+        (num_iterations / 10, 1e-4 * lr_multiplier),
+        (num_iterations / 2, 5e-5 * lr_multiplier),
     ],
-        outside_value=1e-3 * lr_multiplier)
+        outside_value=5e-5 * lr_multiplier)
     optimizer = dqn.OptimizerSpec(
         constructor=tf.train.AdamOptimizer,
         kwargs=dict(epsilon=1e-4),
@@ -84,7 +81,7 @@ def atari_learn(env,
         target_update_freq=10000,
         grad_norm_clipping=10,
         double_q=True,
-        rew_file='pong_lr_1e-3'
+        rew_file=name
     )
     env.close()
 
@@ -117,13 +114,13 @@ def get_session():
     return session
 
 
-def get_env(task, seed):
+def get_env(task, seed, name):
     env = gym.make('PongNoFrameskip-v4')
 
     set_global_seeds(seed)
     env.seed(seed)
 
-    expt_dir = 'video/pong_lr_1e-3/'
+    expt_dir = 'video/{}/'.format(name)
     env = wrappers.Monitor(env, expt_dir, force=True)
     env = wrap_deepmind(env)
 
@@ -133,14 +130,15 @@ def get_env(task, seed):
 def main():
     # Get Atari games.
     task = gym.make('PongNoFrameskip-v4')
+    name = 'pong_double'
 
     # Run training
     # seed = random.randint(0, 9999)
     seed = 0
     print('random seed = %d' % seed)
-    env = get_env(task, seed)
+    env = get_env(task, seed, name)
     session = get_session()
-    atari_learn(env, session, num_timesteps=2e8)
+    atari_learn(env, session, num_timesteps=6e6, name=name)
 
 
 if __name__ == "__main__":
