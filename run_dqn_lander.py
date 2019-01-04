@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import argparse
 import gym
 from gym import wrappers
@@ -60,7 +63,8 @@ def lander_kwargs():
         'frame_history_len': 1,
         'target_update_freq': 3000,
         'grad_norm_clipping': 10,
-        'lander': True
+        'lander': True,
+        'rew_file': 'lander'
     }
 
 

@@ -6,7 +6,7 @@ import gym.spaces
 import itertools
 import numpy as np
 import random
-import tensorflow                as tf
+import tensorflow as tf
 import tensorflow.contrib.layers as layers
 from collections import namedtuple
 from dqn_utils import *
@@ -160,6 +160,23 @@ class QLearner(object):
         ######
 
         # YOUR CODE HERE
+        self.q = q_func(obs_t_float, self.num_actions, scope="q_func", reuse=False)
+        self.target_q = q_func(obs_tp1_float, self.num_actions, scope="target_q_func", reuse=False)
+
+        if not double_q:
+            max_target_q_val = tf.reduce_max(self.target_q, axis=1)
+        else:
+            q_action_eval = q_func(obs_tp1_float, self.num_actions, scope="q_func", reuse=True)
+            max_actions = tf.argmax(q_action_eval, axis=1)
+            max_target_q_val = tf.reduce_sum(tf.multiply(self.target_q, tf.one_hot(max_actions, self.num_actions)),
+                                             axis=1)
+
+        target = self.rew_t_ph + (1 - self.done_mask_ph) * gamma * max_target_q_val
+        q_val = tf.reduce_sum(tf.multiply(self.q, tf.one_hot(self.act_t_ph, self.num_actions)), axis=1)
+
+        self.total_error = tf.reduce_mean(huber_loss(q_val - target))
+        q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="q_func")
+        target_q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="target_q_func")
 
         ######
 
@@ -189,56 +206,79 @@ class QLearner(object):
         self.best_mean_episode_reward = -float('inf')
         self.last_obs = self.env.reset()
         self.log_every_n_steps = 10000
+        self.save_every_steps = 100000
 
         self.start_time = None
         self.t = 0
+
+        self.t_log = []
+        self.mean_reward_log = []
+        self.best_mean_log = []
+        self.episodes_log = []
+        self.exploration_log = []
+        self.learning_rate_log = []
 
     def stopping_criterion_met(self):
         return self.stopping_criterion is not None and self.stopping_criterion(self.env, self.t)
 
     def step_env(self):
+        ### 2. Step the env and store the transition
+        # At this point, "self.last_obs" contains the latest observation that was
+        # recorded from the simulator. Here, your code needs to store this
+        # observation and its outcome (reward, next observation, etc.) into
+        # the replay buffer while stepping the simulator forward one step.
+        # At the end of this block of code, the simulator should have been
+        # advanced one step, and the replay buffer should contain one more
+        # transition.
+        # Specifically, self.last_obs must point to the new latest observation.
+        # Useful functions you'll need to call:
+        # obs, reward, done, info = env.step(action)
+        # this steps the environment forward one step
+        # obs = env.reset()
+        # this resets the environment if you reached an episode boundary.
+        # Don't forget to call env.reset() to get a new observation if done
+        # is true!!
+        # Note that you cannot use "self.last_obs" directly as input
+        # into your network, since it needs to be processed to include context
+        # from previous frames. You should check out the replay buffer
+        # implementation in dqn_utils.py to see what functionality the replay
+        # buffer exposes. The replay buffer has a function called
+        # encode_recent_observation that will take the latest observation
+        # that you pushed into the buffer and compute the corresponding
+        # input that should be given to a Q network by appending some
+        # previous frames.
+        # Don't forget to include epsilon greedy exploration!
+        # And remember that the first time you enter this loop, the model
+        # may not yet have been initialized (but of course, the first step
+        # might as well be random, since you haven't trained your net...)
 
-    ### 2. Step the env and store the transition
-    # At this point, "self.last_obs" contains the latest observation that was
-    # recorded from the simulator. Here, your code needs to store this
-    # observation and its outcome (reward, next observation, etc.) into
-    # the replay buffer while stepping the simulator forward one step.
-    # At the end of this block of code, the simulator should have been
-    # advanced one step, and the replay buffer should contain one more
-    # transition.
-    # Specifically, self.last_obs must point to the new latest observation.
-    # Useful functions you'll need to call:
-    # obs, reward, done, info = env.step(action)
-    # this steps the environment forward one step
-    # obs = env.reset()
-    # this resets the environment if you reached an episode boundary.
-    # Don't forget to call env.reset() to get a new observation if done
-    # is true!!
-    # Note that you cannot use "self.last_obs" directly as input
-    # into your network, since it needs to be processed to include context
-    # from previous frames. You should check out the replay buffer
-    # implementation in dqn_utils.py to see what functionality the replay
-    # buffer exposes. The replay buffer has a function called
-    # encode_recent_observation that will take the latest observation
-    # that you pushed into the buffer and compute the corresponding
-    # input that should be given to a Q network by appending some
-    # previous frames.
-    # Don't forget to include epsilon greedy exploration!
-    # And remember that the first time you enter this loop, the model
-    # may not yet have been initialized (but of course, the first step
-    # might as well be random, since you haven't trained your net...)
+        #####
 
-    #####
+        # YOUR CODE HERE
+        idx = self.replay_buffer.store_frame(self.last_obs)
 
-    # YOUR CODE HERE
+        if not self.model_initialized or np.random.uniform() < self.exploration.value(self.t):
+            action = self.env.action_space.sample()
+        else:
+            encoded_obs = self.replay_buffer.encode_recent_observation()
+            action_logits = self.session.run(self.q, feed_dict={self.obs_t_ph: np.expand_dims(encoded_obs, axis=0)})
+
+            action = np.argmax(action_logits[0, :])  # choose action with max value
+
+        obs, reward, done, info = self.env.step(action)
+        self.last_obs = obs
+        self.replay_buffer.store_effect(idx, action, reward, done)
+
+        if done:
+            self.last_obs = self.env.reset()
 
     def update_model(self):
         ### 3. Perform experience replay and train the network.
         # note that this is only done if the replay buffer contains enough samples
         # for us to learn something useful -- until then, the model will not be
         # initialized and random actions should be taken
-        if (self.t > self.learning_starts and \
-                self.t % self.learning_freq == 0 and \
+        if (self.t > self.learning_starts and
+                self.t % self.learning_freq == 0 and
                 self.replay_buffer.can_sample(self.batch_size)):
             # Here, you should perform training. Training consists of four steps:
             # 3.a: use the replay buffer to sample a batch of transitions (see the
@@ -276,8 +316,34 @@ class QLearner(object):
             #####
 
             # YOUR CODE HERE
+            # 3.a
+            obs_batch, act_batch, rew_batch, next_obs_batch, done_mask = self.replay_buffer.sample(self.batch_size)
+
+            # 3.b
+            if not self.model_initialized:
+                initialize_interdependent_variables(self.session, tf.global_variables(), {
+                    self.obs_t_ph: obs_batch,
+                    self.obs_tp1_ph: next_obs_batch
+                })
+                # self.session.run(self.update_target_fn)
+                self.model_initialized = True
 
             self.num_param_updates += 1
+
+            # 3.c
+            learning_rate = self.optimizer_spec.lr_schedule.value(self.t)
+            self.session.run(self.train_fn, feed_dict={
+                self.obs_t_ph: obs_batch,
+                self.act_t_ph: act_batch,
+                self.rew_t_ph: rew_batch,
+                self.obs_tp1_ph: next_obs_batch,
+                self.done_mask_ph: done_mask,
+                self.learning_rate: learning_rate,
+            })
+
+            # 3.d
+            if self.num_param_updates % self.target_update_freq == 0:
+                self.session.run(self.update_target_fn)
 
         self.t += 1
 
@@ -291,12 +357,19 @@ class QLearner(object):
             self.best_mean_episode_reward = max(self.best_mean_episode_reward, self.mean_episode_reward)
 
         if self.t % self.log_every_n_steps == 0 and self.model_initialized:
+            print('-----------------------------------------------------')
             print("Timestep %d" % (self.t,))
+            self.t_log.append(self.t)
             print("mean reward (100 episodes) %f" % self.mean_episode_reward)
+            self.mean_reward_log.append(self.mean_episode_reward)
             print("best mean reward %f" % self.best_mean_episode_reward)
+            self.best_mean_log.append(self.best_mean_episode_reward)
             print("episodes %d" % len(episode_rewards))
+            self.episodes_log.append(len(episode_rewards))
             print("exploration %f" % self.exploration.value(self.t))
+            self.exploration_log.append(self.exploration.value(self.t))
             print("learning_rate %f" % self.optimizer_spec.lr_schedule.value(self.t))
+            self.learning_rate_log.append(self.optimizer_spec.lr_schedule.value(self.t))
             if self.start_time is not None:
                 print("running time %f" % ((time.time() - self.start_time) / 60.))
 
@@ -304,8 +377,13 @@ class QLearner(object):
 
             sys.stdout.flush()
 
-            with open(self.rew_file, 'wb') as f:
-                pickle.dump(episode_rewards, f, pickle.HIGHEST_PROTOCOL)
+        if self.t % self.save_every_steps == 0 and self.model_initialized:
+            training_log = ({'t_log': self.t_log, 'mean_reward_log': self.mean_reward_log,
+                             'best_mean_log': self.best_mean_log, 'episodes_log': self.episodes_log,
+                             'exploration_log': self.exploration_log, 'learning_rate_log': self.learning_rate_log})
+            output_file_name = 'data/' + self.rew_file + '_' + str(int(self.t / 1000)) + 'k_data.pkl'
+            with open(output_file_name, 'wb') as f:
+                pickle.dump(training_log, f, pickle.HIGHEST_PROTOCOL)
 
 
 def learn(*args, **kwargs):

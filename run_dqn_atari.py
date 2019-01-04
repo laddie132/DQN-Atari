@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import argparse
 import gym
 from gym import wrappers
@@ -76,7 +79,8 @@ def atari_learn(env,
         frame_history_len=4,
         target_update_freq=10000,
         grad_norm_clipping=10,
-        double_q=True
+        double_q=True,
+        rew_file='pong_double'
     )
     env.close()
 
@@ -103,6 +107,7 @@ def get_session():
     tf_config = tf.ConfigProto(
         inter_op_parallelism_threads=1,
         intra_op_parallelism_threads=1)
+    tf_config.gpu_options.allow_growth = True
     session = tf.Session(config=tf_config)
     print("AVAILABLE GPUS: ", get_available_gpus())
     return session
@@ -126,7 +131,8 @@ def main():
     task = gym.make('PongNoFrameskip-v4')
 
     # Run training
-    seed = random.randint(0, 9999)
+    # seed = random.randint(0, 9999)
+    seed = 0
     print('random seed = %d' % seed)
     env = get_env(task, seed)
     session = get_session()
