@@ -1,3 +1,16 @@
+# 高级机器学习-作业5
+在CS294-112 HW3基础上实现了Double DQN算法
+
+## 目录
+- data目录下保存的是不同参数下的训练奖励日志
+- video目录下保存的是不同参数下的算法训练过程视频
+
+## 使用
+- 运行`run_dqn_atari.py`训练强化学习算法
+- 运行`plot.py`绘制奖励曲线
+
+> 以下是原仓库README
+---
 # CS294-112 HW 3: Q-Learning
 
 Dependencies:
