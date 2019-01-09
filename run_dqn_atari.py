@@ -138,7 +138,7 @@ def main():
     print('random seed = %d' % seed)
     env = get_env(task, seed, name)
     session = get_session()
-    atari_learn(env, session, num_timesteps=6e6, name=name)
+    atari_learn(env, session, num_timesteps=4e7, name=name)
 
 
 if __name__ == "__main__":

@@ -21,7 +21,7 @@ def plot_q1():
     pixel_plot = plt.figure()
     plt.plot(pixel_t, pixel_mean_rewards, label='Mean 100-Episode Reward')
     plt.plot(pixel_t, pixel_best_rewards, label='Best Mean Reward')
-    plt.title('Q-Learning Performance on Pong with Pixels')
+    plt.title('Q-Learning Performance on Pong with Pixel')
     plt.xlabel('Timesteps')
     plt.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
     plt.ylabel('Reward')
@@ -45,11 +45,11 @@ def plot_q2(files, labels, num_steps=None):
 
         plt.plot(pixel_t, pixel_mean_rewards, label=labels[i])
 
-    plt.title('Learning Rate vs. Q-Learning Performance for Pong with Pixel')
+    plt.title('Q-Learning Performance for Pong with Pixel')
     plt.xlabel('Timesteps')
     plt.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
     plt.ylabel('Reward')
-    plt.legend(loc=2)
+    plt.legend()
     pp = PdfPages('pong_hyper_parameters.pdf')
     pp.savefig(all_plot)
     pp.close()
@@ -58,9 +58,13 @@ def plot_q2(files, labels, num_steps=None):
 if __name__ == '__main__':
     plot_q1()
     plot_q2(files=['data/pong_double_9500k_data.pkl',
-                   'data/pong_3400k_data.pkl',
-                   'data/pong_lr_1e-3_1600k_data.pkl'],
-            labels=['Default Hyperparameters',
+                   'data/pong_12300k_data.pkl',
+                   'data/pong_lr_1e-3_9800k_data.pkl',
+                   'data/pong_explore_0.1_9900k_data.pkl',
+                   'data/pong_gamma_0.6_9900k_data.pkl'],
+            labels=['Default',
                     'No Double DQN',
-                    'LR = 1e-3'],
-            num_steps=None)
+                    'LR = 1e-3',
+                    'Explore = 0.1',
+                    'Gamma = 0.6'],
+            num_steps=990)
